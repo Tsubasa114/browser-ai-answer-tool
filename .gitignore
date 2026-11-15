@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Runtime output
+runs/
+logs/
+test/runs/
+
+# Local config (may contain API keys)
+config.json
+
+# Browser profiles / caches
+.browser-profile/
+**/.browser-profile/
+
+# Misc
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>带干扰控件的练习页</title>
+<style>
+  body { font-family: system-ui, "Microsoft YaHei", sans-serif; background:#f4f6fa; margin:0; color:#1c2430; }
+  header { display:flex; align-items:center; gap:12px; padding:10px 22px; background:#1f2a3d; color:#dfe7f5; }
+  header .spacer { flex:1; }
+  header button { background:transparent; border:1px solid #3a4a66; color:#dfe7f5; border-radius:6px; padding:4px 10px; cursor:pointer; font:inherit; font-size:13px; }
+  nav { display:flex; gap:10px; padding:8px 22px; background:#eef2f8; border-bottom:1px solid #dde4ee; font-size:13px; }
+  nav a, nav button { color:#4a5a72; background:none; border:0; cursor:pointer; font:inherit; text-decoration:none; }
+  .wrap { max-width:720px; margin:22px auto; background:#fff; border-radius:12px; padding:26px 30px; box-shadow:0 6px 28px rgba(20,40,80,.08); }
+  .progress { font-size:13px; color:#8b98ab; margin-bottom:14px; }
+  .question-title { font-size:17px; line-height:1.6; margin:0 0 16px; font-weight:600; }
+  .option { display:flex; align-items:center; gap:10px; padding:10px 13px; border:1px solid #dbe2ec; border-radius:9px; margin-bottom:9px; cursor:pointer; }
+  .option:hover { border-color:#7aa7ff; background:#f6f9ff; }
+  input[type=text], textarea, select { width:100%; box-sizing:border-box; padding:9px 11px; border:1px solid #d3dbe8; border-radius:8px; font-size:15px; font-family:inherit; }
+  textarea { min-height:70px; }
+  .actions { margin-top:18px; display:flex; justify-content:flex-end; }
+  button.primary { border:0; border-radius:8px; padding:10px 22px; font-size:15px; cursor:pointer; background:#2f6bff; color:#fff; }
+  .result h2 { margin:0 0 8px; }
+  .result .score { font-size:24px; font-weight:700; color:#1a9c62; }
+  .result .detail { font-size:13px; color:#5b6b82; white-space:pre-line; line-height:1.7; }
+  .banner { background:#fff3cd; color:#7a5b00; padding:6px 22px; font-size:13px; display:none; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <strong>学习平台</strong>
+  <div class="spacer"></div>
+  <!-- 干扰 1：语言切换（文案 English） -->
+  <button id="langBtn" class="lang-switch">English</button>
+  <!-- 干扰 2：页头里一个叫 Next 的按钮 -->
+  <button id="nextTrap">Next</button>
+</header>
+<nav class="nav-bar">
+  <a href="#">首页</a>
+  <a href="#">题库</a>
+  <!-- 干扰 3：数字 2（语言切换常写成 1/2） -->
+  <button id="langNum">2</button>
+</nav>
+<div class="banner" id="banner">你点到了语言切换</div>
+
+<div class="wrap">
+  <div class="progress" id="progress"></div>
+  <div id="stage"></div>
+</div>
+<script>
+const params = new URLSearchParams(location.search);
+const MODE = params.get('mode') || 'button';   // button | url
+const QUESTIONS = [
+  { type:'single', stem:'中国的首都是哪座城市？', key:'A', options:['A. 北京','B. 上海','C. 广州','D. 深圳'] },
+  { type:'single', stem:'光在真空中的传播速度约为？', key:'B', options:['A. 3×10⁵ km/s','B. 3×10⁸ m/s','C. 340 m/s','D. 1.5×10⁸ m/s'] },
+  { type:'multiple', stem:'下列属于编程语言的有？', key:['A','C'], options:['A. Python','B. HTML','C. Java','D. JSON'] },
+  { type:'multiple', stem:'下列整数中是偶数的有？', key:['A','C'], options:['A. 2','B. 3','C. 4','D. 5'] },
+  { type:'blank', stem:'2 的 10 次方等于 ______', key:'1024' },
+  { type:'blank', stem:'请用一句话说明 API 是什么。', key:'keyword:接口' },
+  { type:'judge', stem:'太阳从西边升起。', key:'错', options:['对','错'] },
+  { type:'select', stem:'一年有几个月？', key:'12', options:['11','12','13'] },
+];
+
+window.__traps = { lang:false, next:false, langNum:false };
+function trap(name) { window.__traps[name] = true; document.getElementById('banner').style.display='block'; }
+document.getElementById('langBtn').addEventListener('click', () => trap('lang'));
+document.getElementById('nextTrap').addEventListener('click', () => trap('next'));
+document.getElementById('langNum').addEventListener('click', () => trap('langNum'));
+
+const stage = document.getElementById('stage');
+const progress = document.getElementById('progress');
+const answers = {};
+if (MODE === 'url') {
+  try { Object.assign(answers, JSON.parse(sessionStorage.getItem('chrome-answers') || '{}')); } catch (e) {}
+}
+const persist = () => { if (MODE === 'url') { try { sessionStorage.setItem('chrome-answers', JSON.stringify(answers)); } catch (e) {} } };
+
+let current = 0;
+if (MODE === 'url') {
+  current = Math.max(0, Math.min(QUESTIONS.length - 1, Number(params.get('page') || 1) - 1));
+}
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function render() {
+  const q = QUESTIONS[current];
+  const multi = q.type === 'multiple';
+  const isLast = current === QUESTIONS.length - 1;
+  progress.textContent = `第 ${current + 1} 题 / 共 ${QUESTIONS.length} 题`;
+
+  let html = `<h2 class="question-title">${esc(q.stem)}</h2>`;
+  if (q.type === 'select') {
+    html += `<select data-q="${current}"><option value="">请选择</option>`;
+    q.options.forEach((o) => { html += `<option value="${esc(o)}" ${answers[current] === o ? 'selected' : ''}>${esc(o)}</option>`; });
+    html += '</select>';
+  } else if (q.options) {
+    html += '<div>';
+    q.options.forEach((text, i) => {
+      const letter = String.fromCharCode(65 + i);
+      const cur = answers[current];
+      const checked = multi ? (cur || []).includes(letter) : cur === letter;
+      html += `<label class="option"><input type="${multi ? 'checkbox' : 'radio'}" name="q${current}" value="${letter}" ${checked ? 'checked' : ''}><span class="option-text">${esc(text)}</span></label>`;
+    });
+    html += '</div>';
+  } else {
+    const v = answers[current] || '';
+    html += q.stem.includes('API')
+      ? `<textarea>${esc(v)}</textarea>`
+      : `<input type="text" value="${esc(v)}">`;
+  }
+  html += `<div class="actions">${MODE === 'button'
+    ? (isLast ? '<button id="submit" class="submit-btn primary">提交</button>' : '<button id="next" class="next-btn primary">下一题</button>')
+    : (isLast ? '<button id="submit" class="submit-btn primary">提交</button>' : '')}</div>`;
+  stage.innerHTML = html;
+
+  const next = document.getElementById('next');
+  if (next) next.addEventListener('click', () => { current += 1; render(); });
+  const submit = document.getElementById('submit');
+  if (submit) submit.addEventListener('click', finish);
+
+  stage.querySelectorAll('input[type=radio], input[type=checkbox]').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      if (multi) {
+        const set = new Set(answers[current] || []);
+        if (inp.checked) set.add(inp.value); else set.delete(inp.value);
+        answers[current] = [...set].sort();
+      } else answers[current] = inp.value;
+      persist();
+    });
+  });
+  stage.querySelectorAll('input[type=text], textarea, select').forEach((el) => {
+    el.addEventListener('input', () => { answers[current] = el.value; persist(); });
+    el.addEventListener('change', () => { answers[current] = el.value; persist(); });
+  });
+}
+
+function judge(q, ans) {
+  if (q.type === 'single') return ans === q.key;
+  if (q.type === 'judge') { const i = typeof ans === 'string' && ans ? ans.charCodeAt(0) - 65 : -1; return (q.options[i] || '') === q.key; }
+  if (q.type === 'multiple') return (ans || []).slice().sort().join('') === q.key.slice().sort().join('');
+  if (q.type === 'blank') { const v = String(ans || '').trim(); return q.key.startsWith('keyword:') ? v.includes(q.key.slice(8)) : v === q.key; }
+  if (q.type === 'select') return String(ans || '').trim() === q.key;
+  return false;
+}
+
+function finish() {
+  let right = 0;
+  const lines = [];
+  QUESTIONS.forEach((q, i) => {
+    const ok = judge(q, answers[i]);
+    if (ok) right += 1;
+    lines.push(`${ok ? '✓' : '✗'} 第${i + 1}题 你的答案：${JSON.stringify(answers[i] ?? '')}`);
+  });
+  const score = Math.round((right / QUESTIONS.length) * 100);
+  progress.textContent = '';
+  stage.innerHTML = `<div class="result"><h2>答题完成</h2>
+    <p class="score">得分 ${score}（${right}/${QUESTIONS.length}）</p>
+    <p class="detail">${lines.join('\n')}</p></div>`;
+  window.__quizDone = { right, total: QUESTIONS.length, score, traps: window.__traps };
+}
+
+render();
+</script>
+</body>
+</html>

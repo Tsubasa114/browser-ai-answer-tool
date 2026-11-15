@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>跳题方式自测页</title>
+<style>
+  body { font-family: system-ui, "Microsoft YaHei", sans-serif; background:#f4f6fa; margin:0; padding:24px; color:#1c2430; }
+  .layout { display:flex; gap:18px; max-width:1000px; margin:0 auto; }
+  .side { width:170px; background:#fff; border-radius:12px; padding:14px; box-shadow:0 6px 24px rgba(20,40,80,.07); height:max-content; }
+  .side button { display:block; width:100%; margin-bottom:8px; padding:8px; border:1px solid #dbe2ec; background:#fff; border-radius:8px; cursor:pointer; font:inherit; }
+  .side button.active { border-color:#2f6bff; color:#2f6bff; font-weight:600; }
+  .main { flex:1; background:#fff; border-radius:12px; padding:26px 30px; box-shadow:0 6px 28px rgba(20,40,80,.08); }
+  h1 { font-size:15px; color:#4a5a72; margin:0 0 4px; }
+  .progress { font-size:13px; color:#8b98ab; margin-bottom:16px; }
+  .question-title { font-size:17px; line-height:1.6; margin:0 0 16px; font-weight:600; }
+  .option { display:flex; align-items:center; gap:10px; padding:10px 13px; border:1px solid #dbe2ec; border-radius:9px; margin-bottom:9px; cursor:pointer; }
+  .option:hover { border-color:#7aa7ff; background:#f6f9ff; }
+  input[type=text], textarea, select { width:100%; box-sizing:border-box; padding:9px 11px; border:1px solid #d3dbe8; border-radius:8px; font-size:15px; font-family:inherit; }
+  textarea { min-height:70px; }
+  .actions { margin-top:18px; display:flex; justify-content:flex-end; }
+  button.primary { border:0; border-radius:8px; padding:10px 22px; font-size:15px; cursor:pointer; background:#2f6bff; color:#fff; }
+  .q-block { padding:6px 0 26px; border-bottom:1px dashed #e2e8f2; margin-bottom:22px; }
+  .q-block:last-of-type { border-bottom:0; }
+  .result h2 { margin:0 0 8px; }
+  .result .score { font-size:24px; font-weight:700; color:#1a9c62; }
+  .result .detail { font-size:13px; color:#5b6b82; white-space:pre-line; line-height:1.7; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="side hidden" id="side"></div>
+  <div class="main">
+    <h1 id="siteTitle">跳题方式自测</h1>
+    <div class="progress" id="progress"></div>
+    <div id="stage"></div>
+  </div>
+</div>
+<script>
+const params = new URLSearchParams(location.search);
+const MODE = params.get('mode') || 'keyboard';     // keyboard | url | sidebar | single
+
+const QUESTIONS = [
+  { type:'single', stem:'中国的首都是哪座城市？', key:'A', options:['A. 北京','B. 上海','C. 广州','D. 深圳'] },
+  { type:'single', stem:'光在真空中的传播速度约为？', key:'B', options:['A. 3×10⁵ km/s','B. 3×10⁸ m/s','C. 340 m/s','D. 1.5×10⁸ m/s'] },
+  { type:'multiple', stem:'下列属于编程语言的有？', key:['A','C'], options:['A. Python','B. HTML','C. Java','D. JSON'] },
+  { type:'multiple', stem:'下列整数中是偶数的有？', key:['A','C'], options:['A. 2','B. 3','C. 4','D. 5'] },
+  { type:'blank', stem:'2 的 10 次方等于 ______', key:'1024', placeholder:'填数字' },
+  { type:'blank', stem:'请用一句话说明 API 是什么。', key:'keyword:接口', placeholder:'一句话描述' },
+  { type:'judge', stem:'太阳从西边升起。', key:'错', options:['对','错'] },
+  { type:'select', stem:'一年有几个月？', key:'12', options:['11','12','13'] },
+];
+
+const stage = document.getElementById('stage');
+const progress = document.getElementById('progress');
+const side = document.getElementById('side');
+const isMultiPage = MODE !== 'single';
+const answers = {};
+
+// URL 模式跨刷新保存答案
+if (MODE === 'url') {
+  try { Object.assign(answers, JSON.parse(sessionStorage.getItem('nav-answers') || '{}')); } catch (e) {}
+}
+function persist() {
+  if (MODE === 'url') { try { sessionStorage.setItem('nav-answers', JSON.stringify(answers)); } catch (e) {} }
+}
+
+let current = 0;
+if (MODE === 'url') current = Math.max(0, Math.min(QUESTIONS.length - 1, Number(params.get('p') || 1) - 1));
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function questionHtml(q, idx, opts) {
+  const multi = q.type === 'multiple';
+  let html = `<h2 class="question-title">${esc(q.stem)}</h2>`;
+  if (q.type === 'select') {
+    html += `<select data-q="${idx}"><option value="">请选择</option>`;
+    q.options.forEach((o) => { html += `<option value="${esc(o)}" ${answers[idx] === o ? 'selected' : ''}>${esc(o)}</option>`; });
+    html += '</select>';
+  } else if (q.options) {
+    html += `<div class="${q.type === 'judge' ? 'judge' : ''}">`;
+    q.options.forEach((text, i) => {
+      const letter = String.fromCharCode(65 + i);
+      const cur = answers[idx];
+      const checked = multi ? (cur || []).includes(letter) : cur === letter;
+      html += `<label class="option"><input type="${multi ? 'checkbox' : 'radio'}" name="q${idx}" value="${letter}" ${checked ? 'checked' : ''} data-q="${idx}"><span class="option-text">${esc(text)}</span></label>`;
+    });
+    html += '</div>';
+  } else if (q.type === 'blank') {
+    const v = answers[idx] || '';
+    html += q.stem.includes('API')
+      ? `<textarea data-q="${idx}" placeholder="${esc(q.placeholder || '')}">${esc(v)}</textarea>`
+      : `<input type="text" data-q="${idx}" placeholder="${esc(q.placeholder || '')}" value="${esc(v)}">`;
+  }
+  if (opts && opts.actions) html += opts.actions;
+  return html;
+}
+
+function bind(idx, root) {
+  root.querySelectorAll('input[type=radio], input[type=checkbox]').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      const q = QUESTIONS[idx];
+      if (q.type === 'multiple') {
+        const set = new Set(answers[idx] || []);
+        if (inp.checked) set.add(inp.value); else set.delete(inp.value);
+        answers[idx] = [...set].sort();
+      } else {
+        answers[idx] = inp.value;
+      }
+      persist();
+    });
+  });
+  const blank = root.querySelector('[data-q]');
+  root.querySelectorAll('input[type=text], textarea, select').forEach((el) => {
+    el.addEventListener('input', () => { answers[idx] = el.value; persist(); });
+    el.addEventListener('change', () => { answers[idx] = el.value; persist(); });
+  });
+  return blank;
+}
+function actionsHtml(isLast) {
+  return `<div class="actions">${isLast ? '<button id="submit" class="submit-btn primary">提交</button>' : ''}</div>`;
+}
+
+function renderPaged() {
+  const q = QUESTIONS[current];
+  const isLast = current === QUESTIONS.length - 1;
+  progress.textContent = `第 ${current + 1} 题 / 共 ${QUESTIONS.length} 题`;
+  stage.innerHTML = `<div class="q-block">${questionHtml(q, current, { actions: actionsHtml(isLast) })}</div>`;
+  bind(current, stage);
+  const submit = document.getElementById('submit');
+  if (submit) submit.addEventListener('click', finish);
+  if (MODE === 'sidebar') renderSide();
+}
+
+function renderSide() {
+  side.classList.remove('hidden');
+  side.innerHTML = QUESTIONS.map((_, i) =>
+    `<button class="${i === current ? 'active' : ''}" data-jump="${i}">第${i + 1}题</button>`).join('');
+  side.querySelectorAll('button').forEach((b) => {
+    b.addEventListener('click', () => { current = Number(b.dataset.jump); renderPaged(); });
+  });
+}
+
+function renderSingle() {
+  progress.textContent = `共 ${QUESTIONS.length} 题（一页显示）`;
+  stage.innerHTML = QUESTIONS.map((q, i) =>
+    `<div class="q-block">${questionHtml(q, i, {})}</div>`).join('') +
+    `<div class="actions"><button id="submit" class="submit-btn primary">提交</button></div>`;
+  QUESTIONS.forEach((_, i) => {
+    const block = stage.querySelectorAll('.q-block')[i];
+    bind(i, block);
+  });
+  document.getElementById('submit').addEventListener('click', finish);
+}
+
+function judge(q, ans) {
+  if (q.type === 'single') return ans === q.key;
+  if (q.type === 'judge') {
+    const idx = typeof ans === 'string' && ans ? ans.charCodeAt(0) - 65 : -1;
+    return (q.options[idx] || '') === q.key;
+  }
+  if (q.type === 'multiple') return (ans || []).slice().sort().join('') === q.key.slice().sort().join('');
+  if (q.type === 'blank') {
+    const v = String(ans || '').trim();
+    return q.key.startsWith('keyword:') ? v.includes(q.key.slice(8)) : v === q.key;
+  }
+  if (q.type === 'select') return String(ans || '').trim() === q.key;
+  return false;
+}
+
+function finish() {
+  let right = 0;
+  const lines = [];
+  QUESTIONS.forEach((q, i) => {
+    const ok = judge(q, answers[i]);
+    if (ok) right += 1;
+    lines.push(`${ok ? '✓' : '✗'} 第${i + 1}题 你的答案：${JSON.stringify(answers[i] ?? '')}`);
+  });
+  const score = Math.round((right / QUESTIONS.length) * 100);
+  progress.textContent = '';
+  document.getElementById('side').classList.add('hidden');
+  stage.innerHTML = `<div class="result"><h2>答题完成</h2>
+    <p class="score">得分 ${score}（${right}/${QUESTIONS.length}）</p>
+    <p class="detail">${lines.join('\n')}</p></div>`;
+  window.__quizDone = { right, total: QUESTIONS.length, score, mode: MODE, answers };
+}
+
+// 键盘翻页：Enter / → 进入下一题
+if (MODE === 'keyboard') {
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== 'ArrowRight') return;
+    if (current >= QUESTIONS.length - 1) return;
+    current += 1;
+    renderPaged();
+  });
+}
+
+// URL 翻页模式：页面上没有任何“下一题”按钮，只能靠改地址栏翻页
+if (MODE === 'url') {
+  stage.addEventListener('change', persist);
+}
+
+if (MODE === 'single') renderSingle(); else renderPaged();
+</script>
+</body>
+</html>

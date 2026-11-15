@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>选择语言</title>
+<style>
+  body { font-family: system-ui, "Microsoft YaHei", sans-serif; background:#f4f6fa; margin:0; display:flex; justify-content:center; padding-top:90px; }
+  .box { background:#fff; border-radius:12px; padding:30px 34px; box-shadow:0 6px 28px rgba(20,40,80,.08); width:340px; }
+  h2 { font-size:18px; margin:0 0 18px; }
+  .option { display:flex; align-items:center; gap:10px; padding:10px 13px; border:1px solid #dbe2ec; border-radius:9px; margin-bottom:10px; cursor:pointer; }
+  button { margin-top:16px; width:100%; padding:10px; border:0; border-radius:8px; background:#2f6bff; color:#fff; font-size:15px; }
+</style>
+</head>
+<body>
+  <!-- 干扰页：长得像题目（题干+选项+按钮），但其实是语言选择，检测不应选它 -->
+  <div class="box">
+    <h2>选择语言</h2>
+    <label class="option"><input type="radio" name="lang" value="zh"> <span>简体中文</span></label>
+    <label class="option"><input type="radio" name="lang" value="en"> <span>English</span></label>
+    <button id="next">下一步</button>
+  </div>
+</body>
+</html>

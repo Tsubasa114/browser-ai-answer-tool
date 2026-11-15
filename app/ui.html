@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自动答题控制台</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b24; --panel-2: #1c2330; --line: #263043;
+    --text: #e6edf7; --muted: #8b96a8; --accent: #4d8dff; --green: #2fbf71;
+    --amber: #e0a33a; --red: #e5534b; --mono: "Cascadia Mono", Consolas, "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.6 system-ui, "Microsoft YaHei", sans-serif; }
+  header { display: flex; align-items: center; gap: 14px; padding: 16px 24px; border-bottom: 1px solid var(--line); background: #11161f; position: sticky; top: 0; z-index: 5; }
+  .logo { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, #4d8dff, #8b5cf6); display: grid; place-items: center; font-weight: 700; }
+  h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .3px; }
+  .sub { color: var(--muted); font-size: 12px; }
+  .grow { flex: 1; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .pill.ok .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .pill.run .dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 1.2s infinite; }
+  .pill.err .dot { background: var(--red); }
+  @keyframes pulse { 50% { opacity: .35; } }
+  button { font: inherit; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); padding: 8px 14px; border-radius: 8px; cursor: pointer; transition: .15s; }
+  button:hover:not(:disabled) { border-color: #3a4a66; background: #232c3c; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: #3f7ff0; }
+  button.danger { border-color: #5a2a2a; color: #ff9a94; }
+  main { display: grid; grid-template-columns: 400px 1fr; gap: 18px; padding: 18px 24px 40px; max-width: 1400px; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+  .card h2 { font-size: 13px; margin: 0 0 12px; color: var(--muted); font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .kv { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; font-size: 13px; }
+  .kv span:first-child { color: var(--muted); }
+  .kv b { font-weight: 600; }
+  .tabtitle { font-weight: 600; margin-bottom: 2px; }
+  .taburl { color: var(--muted); font-size: 12px; word-break: break-all; font-family: var(--mono); }
+  .bar { height: 6px; border-radius: 4px; background: #202838; overflow: hidden; margin: 10px 0 6px; }
+  .bar > i { display: block; height: 100%; background: linear-gradient(90deg, #4d8dff, #8b5cf6); width: 0; transition: width .3s; }
+  .qstem { font-size: 14px; line-height: 1.55; margin: 6px 0 8px; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 6px; background: #23324b; color: #9fc0ff; font-size: 12px; margin-right: 4px; }
+  .chip.ok { background: #16351f; color: #7fe0a0; }
+  .chip.bad { background: #3a1c1b; color: #ff9a94; }
+  .log { background: #0a0e14; border: 1px solid var(--line); border-radius: 10px; height: 430px; overflow: auto; padding: 10px 12px; font-family: var(--mono); font-size: 12px; line-height: 1.55; }
+  .log div { white-space: pre-wrap; word-break: break-word; }
+  .l-info { color: #c7d3e5; }
+  .l-warn { color: var(--amber); }
+  .l-error { color: #ff8b84; }
+  .cands { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .cands div { padding: 3px 0; border-top: 1px dashed #212b3c; }
+  .errbar { background: #3a1c1b; border: 1px solid #5a2a2a; color: #ffb4ae; padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 13px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #212b3c; vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  td.ans { font-family: var(--mono); color: #9fc0ff; }
+  details > summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 4px 0; }
+  form label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  form input[type=text], form input[type=password], form input[type=number] {
+    width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+    background: #0e131c; color: var(--text); font: inherit;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .toast { position: fixed; right: 20px; bottom: 20px; background: #1f2a3d; border: 1px solid #33415c; padding: 10px 16px; border-radius: 10px; opacity: 0; transform: translateY(8px); transition: .25s; font-size: 13px; }
+  .toast.show { opacity: 1; transform: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">A</div>
+  <div>
+    <h1>自动答题控制台</h1>
+    <div class="sub" id="modelLine">—</div>
+  </div>
+  <div class="grow"></div>
+  <span class="pill" id="statusPill"><i class="dot"></i><span id="statusText">未连接</span></span>
+  <button id="btnConnect">连接并扫描</button>
+  <button id="btnStart" class="primary">开始答题</button>
+  <button id="btnStop" class="danger" disabled>停止</button>
+</header>
+
+<main>
+  <section>
+    <div id="errBox" class="errbar" style="display:none"></div>
+
+    <div class="card">
+      <h2>目标页面</h2>
+      <div id="tabBox"><div class="hint">还没有连接。点右上角“连接并扫描”，会自动找出浏览器里开着题目的那个标签页。</div></div>
+      <div class="row" style="margin-top:12px">
+        <button id="btnScan">重新扫描</button>
+        <label class="hint" style="display:flex;align-items:center;gap:6px;margin-left:auto">
+          <input type="checkbox" id="optAuto" checked> 自动提交
+        </label>
+        <label class="hint" style="display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="optDry"> 只预览
+        </label>
+      </div>
+      <div class="cands" id="cands"></div>
+    </div>
+
+    <div class="card">
+      <h2>进度</h2>
+      <div class="bar"><i id="barFill"></i></div>
+      <div class="kv"><span>已答 / 识别</span><b id="statAnswered">0 / 0</b></div>
+      <div class="kv"><span>跳过</span><b id="statSkipped">0</b></div>
+      <div class="kv"><span>结果</span><b id="statResult">—</b></div>
+      <div id="lastBox" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>实时日志
+        <span style="float:right;display:flex;gap:8px">
+          <button id="btnClear" style="padding:2px 10px;font-size:12px">清空</button>
+        </span>
+      </h2>
+      <div class="log" id="log"></div>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>答题记录（最近 30 条）</summary>
+        <div id="history" style="margin-top:10px"><div class="hint">暂无记录</div></div>
+      </details>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>设置</summary>
+        <form id="cfgForm" style="margin-top:6px">
+          <div class="grid2">
+            <div>
+              <label>接口地址（OpenAI 兼容）</label>
+              <input type="text" id="cfgBaseURL" placeholder="https://api.deepseek.com/v1">
+            </div>
+            <div>
+              <label>模型</label>
+              <input type="text" id="cfgModel" placeholder="deepseek-chat">
+            </div>
+          </div>
+          <label>API Key（留空表示不修改）</label>
+          <input type="password" id="cfgKey" placeholder="sk-...">
+          <div class="grid2">
+            <div>
+              <label>每题间隔 (ms)</label>
+              <input type="number" id="cfgDelay" min="0" step="100">
+            </div>
+            <div>
+              <label>置信度阈值</label>
+              <input type="number" id="cfgConf" min="0" max="1" step="0.05">
+            </div>
+          </div>
+          <label>自动跳题方式（按顺序尝试；题号侧栏 / URL 翻页 / 键盘 / 滚动）</label>
+          <input type="text" id="cfgNext" placeholder="sidebar,url,keyboard,scroll">
+          <div class="row" style="margin-top:14px">
+            <button type="submit" class="primary">保存设置</button>
+            <button type="button" id="btnShutdown">关闭面板</button>
+            <span class="hint" id="keyState" style="margin-left:auto"></span>
+          </div>
+        </form>
+      </details>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const api = async (p, body) => {
+  const r = await fetch(p, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  return r.json();
+};
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+const KIND = { single: '单选', multiple: '多选', blank: '填空', select: '下拉', unknown: '未知' };
+
+// ---------- 日志流 ----------
+const logEl = $('#log');
+function appendLog(ev) {
+  const div = document.createElement('div');
+  div.className = 'l-' + (ev.level || 'info');
+  div.textContent = ev.text;
+  logEl.appendChild(div);
+  while (logEl.childElementCount > 800) logEl.removeChild(logEl.firstChild);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+const es = new EventSource('/api/logs');
+es.onmessage = (e) => { try { appendLog(JSON.parse(e.data)); } catch (err) {} };
+$('#btnClear').onclick = () => { logEl.innerHTML = ''; };
+
+// ---------- 状态渲染 ----------
+let lastState = null;
+function renderState(s) {
+  lastState = s;
+  const c = s.config || {};
+  $('#modelLine').textContent = `${c.llm?.model || '?'} · ${c.mock ? '演示模式（内置答案表）' : c.llm?.baseURL || ''}`;
+  $('#keyState').textContent = c.llm?.keySet ? '已配置 Key' : '未配置 Key';
+
+  const pill = $('#statusPill');
+  const map = {
+    idle: ['ok', s.connected ? '已连接' : '未连接'],
+    starting: ['run', '启动中'],
+    running: ['run', '答题中'],
+    done: ['ok', '已完成'],
+    error: ['err', '出错'],
+  };
+  const [cls, text] = map[s.status] || ['', s.status];
+  pill.className = 'pill ' + cls;
+  $('#statusText').textContent = text;
+
+  const busy = s.status === 'running' || s.status === 'starting';
+  $('#btnStart').disabled = busy;
+  $('#btnStop').disabled = !busy;
+  $('#btnConnect').disabled = busy;
+  $('#btnScan').disabled = busy;
+
+  if (s.error) { $('#errBox').style.display = ''; $('#errBox').textContent = s.error; }
+  else $('#errBox').style.display = 'none';
+
+  // 目标页
+  if (s.tab) {
+    $('#tabBox').innerHTML = `<div class="tabtitle">${esc(s.tab.title || '(无标题)')}</div>
+      <div class="taburl">${esc(s.tab.url)}</div>
+      <div class="hint" style="margin-top:6px">匹配得分 ${s.tab.score}</div>`;
+  } else if (s.connected) {
+    $('#tabBox').innerHTML = '<div class="hint">已连接，但没找到像题目页的标签页。请在浏览器里打开题目页，再点“重新扫描”。</div>';
+  }
+  const cands = (s.candidates || []).filter((x) => x.score > 0).slice(0, 4);
+  $('#cands').innerHTML = cands.length
+    ? cands.map((x) => `<div>${x.score} 分 · ${esc(x.title)} <span style="opacity:.6">${(x.reasons || []).join('/')}</span></div>`).join('')
+    : '';
+
+  // 进度
+  const p = s.progress || { answered: 0, total: 0, skipped: 0 };
+  $('#statAnswered').textContent = `${p.answered} / ${p.total}`;
+  $('#statSkipped').textContent = p.skipped;
+  const pct = p.total ? Math.round((p.answered / p.total) * 100) : 0;
+  $('#barFill').style.width = pct + '%';
+  $('#statResult').textContent = s.result
+    ? `${s.result.reason}${s.result.submitted && !/提交|交卷/.test(s.result.reason) ? ' · 已提交' : ''}${s.result.score ? ' · ' + s.result.score.replace(/\\s+/g, ' ').slice(0, 40) : ''}`
+    : (busy ? '进行中…' : '—');
+
+  if (s.last) {
+    const l = s.last;
+    const ans = Array.isArray(l.answer) ? l.answer.join(',') : (l.answer == null ? '(无)' : String(l.answer));
+    $('#lastBox').innerHTML = `<div class="kv"><span>当前题</span><b>第 ${l.index} 题 · ${KIND[l.kind] || l.kind}</b></div>
+      <div class="qstem">${esc((l.stem || '').slice(0, 120))}</div>
+      <div><span class="chip">${esc(ans)}</span>
+      <span class="chip ${l.applied ? 'ok' : 'bad'}">${l.applied ? '已填入' : '未填入'}</span>
+      <span class="chip">置信度 ${(l.confidence ?? 0).toFixed(2)}</span></div>`;
+  } else {
+    $('#lastBox').innerHTML = '';
+  }
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+async function refresh() {
+  try {
+    const s = await api('/api/state');
+    renderState(s);
+  } catch (e) {
+    $('#statusPill').className = 'pill err';
+    $('#statusText').textContent = '面板已断开';
+  }
+}
+
+async function loadHistory() {
+  const r = await api('/api/history?limit=30');
+  const items = r.items || [];
+  if (!items.length) { $('#history').innerHTML = '<div class="hint">暂无记录</div>'; return; }
+  $('#history').innerHTML = `<table><thead><tr><th>时间</th><th>题</th><th>答案</th><th>置信度</th><th>状态</th></tr></thead><tbody>` +
+    items.map((it) => `<tr><td>${(it.at || '').slice(11, 19)}</td>
+      <td title="${esc(it.stem || '')}">${esc((it.stem || '').slice(0, 28))}</td>
+      <td class="ans">${esc(Array.isArray(it.answer) ? it.answer.join(',') : it.answer == null ? '' : String(it.answer).slice(0, 30))}</td>
+      <td>${(it.confidence ?? 0).toFixed(2)}</td>
+      <td>${it.applied ? '✓ 已填' : (it.detail || '—')}</td></tr>`).join('') +
+    '</tbody></table>';
+}
+
+// ---------- 操作 ----------
+$('#btnConnect').onclick = async () => {
+  toast('正在连接浏览器…');
+  const r = await api('/api/scan', {});
+  toast(r.ok ? (r.tab ? `已找到题目页：${r.tab.title}` : '已连接，但没找到题目页') : '连接失败');
+  refresh();
+};
+$('#btnScan').onclick = async () => {
+  const r = await api('/api/scan', {});
+  toast(r.ok ? (r.tab ? '已识别到题目页' : '没找到题目页') : '扫描失败');
+  refresh();
+};
+$('#btnStart').onclick = async () => {
+  const r = await api('/api/start', { dryRun: $('#optDry').checked, autoSubmit: $('#optAuto').checked });
+  if (!r.ok) { toast(r.error || '启动失败'); refresh(); return; }
+  toast('已开始');
+  refresh();
+};
+$('#btnStop').onclick = async () => { await api('/api/stop', {}); toast('已发送停止指令'); refresh(); };
+$('#btnShutdown').onclick = async () => { if (confirm('关闭面板服务？')) await api('/api/shutdown', {}); };
+
+$('#cfgForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const patch = {
+    llm: { baseURL: $('#cfgBaseURL').value.trim(), model: $('#cfgModel').value.trim(), apiKey: $('#cfgKey').value },
+    agent: {
+      delayMs: Number($('#cfgDelay').value),
+      confidenceThreshold: Number($('#cfgConf').value),
+      nextStrategies: $('#cfgNext').value.split(',').map((s) => s.trim()).filter(Boolean),
+    },
+  };
+  const r = await api('/api/config', patch);
+  if (r.ok) { toast('设置已保存'); $('#cfgKey').value = ''; fillForm(r.config); }
+  else toast(r.error || '保存失败');
+};
+
+function fillForm(c) {
+  if (!c) return;
+  $('#cfgBaseURL').value = c.llm?.baseURL || '';
+  $('#cfgModel').value = c.llm?.model || '';
+  $('#cfgDelay').value = c.agent?.delayMs ?? 700;
+  $('#cfgConf').value = c.agent?.confidenceThreshold ?? 0.35;
+  const st = c.agent?.nextStrategies;
+  $('#cfgNext').value = Array.isArray(st) ? st.join(',') : '';
+}
+
+// ---------- 启动 ----------
+(async () => {
+  await refresh();
+  fillForm(lastState?.config);
+  loadHistory();
+  setInterval(refresh, 1200);
+  setInterval(loadHistory, 5000);
+  if (new URLSearchParams(location.search).get('auto') === '1') {
+    await api('/api/scan', {});
+    refresh();
+  }
+})();
+</script>
+</body>
+</html>

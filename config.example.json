@@ -1,0 +1,53 @@
+{
+  "browser": {
+    "mode": "cdp",
+    "cdpEndpoint": "http://127.0.0.1:9222",
+    "autoLaunch": true,
+    "channel": "msedge",
+    "headless": false,
+    "url": "",
+    "autoDetect": true,
+    "detectTimeoutMs": 20000,
+    "pageMatch": ""
+  },
+  "llm": {
+    "baseURL": "https://api.deepseek.com/v1",
+    "model": "deepseek-chat",
+    "apiKeyEnv": "DEEPSEEK_API_KEY",
+    "apiKey": "",
+    "temperature": 0,
+    "timeoutMs": 60000,
+    "maxRetries": 2,
+    "jsonMode": true,
+    "visionModel": ""
+  },
+  "agent": {
+    "maxQuestions": 300,
+    "dryRun": false,
+    "autoSubmit": true,
+    "delayMs": 700,
+    "waitChangeMs": 15000,
+    "confidenceThreshold": 0.35,
+    "pauseOnLowConfidence": false,
+    "recordFile": "runs/answers.jsonl",
+    "screenshotDir": "runs/shots",
+    "stopTextRegex": "答题完成|交卷成功|提交成功|考试结束|您的得分|本次得分",
+    "nextStrategies": ["sidebar", "url", "keyboard", "scroll"],
+    "nextKeys": ["Enter", "ArrowRight", "PageDown"],
+    "ignoreTextRegex": ""
+  },
+  "selectors": {
+    "question": ["[data-question]", ".question-title", ".question-stem", ".stem", ".topic", "#question", "h2", "h3"],
+    "blankInput": ["input[type=text]", "input[type=search]", "input[type=number]", "textarea", "[contenteditable=\"true\"]"],
+    "optionLike": ["[class*=\"option\"]", "[class*=\"choice\"]", "[class*=\"answer-item\"]"],
+    "nextButton": ["#next", ".next-btn", "[data-action=\"next\"]", ".next"],
+    "submitButton": ["#submit", ".submit-btn", "[data-action=\"submit\"]", ".submit"],
+    "result": [".result", "#result", ".score", ".exam-result"],
+    "chrome": ["header", "nav", "footer", "aside", "[role=\"navigation\"]", "[role=\"banner\"]",
+      "[class*=\"lang\"]", "[class*=\"locale\"]", "[class*=\"i18n\"]", "[class*=\"switch\"]",
+      "[class*=\"toolbar\"]", "[class*=\"breadcrumb\"]", "[class*=\"topbar\"]", "[class*=\"top-bar\"]",
+      "[class*=\"tabbar\"]", "[class*=\"tab-bar\"]"]
+  },
+  "nextTextRegex": "下一题|下一頁|下一页|继续答题|继续|Next|下一道",
+  "submitTextRegex": "^(提交|交卷|确认提交|提交答卷|Submit|完成答题)"
+}

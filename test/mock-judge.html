@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>判断题练习（复刻真实页面结构）</title>
+<style>
+  body { font-family: system-ui, "Microsoft YaHei", sans-serif; background:#eef1f6; margin:0; padding:18px; color:#1c2430; }
+  .card { max-width:760px; margin:0 auto; background:#fff; border-radius:10px; padding:20px 24px 26px; box-shadow:0 4px 18px rgba(20,40,80,.08); }
+  .qhead { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .qno { font-size:14px; color:#5b6b82; font-weight:600; }
+  /* 语言切换就放在题卡里面，最容易被误当成选项 */
+  .lang-switch { display:flex; gap:4px; }
+  .lang-switch button { border:1px solid #d3dbe8; background:#f7f9fc; border-radius:4px; padding:2px 8px; font-size:12px; cursor:pointer; }
+  .question-title { font-size:16px; line-height:1.7; margin:0 0 16px; font-weight:600; }
+  .option { display:flex; align-items:center; gap:10px; padding:11px 14px; border:1px solid #dbe2ec; border-radius:8px; margin-bottom:10px; cursor:pointer; }
+  .option:hover { border-color:#7aa7ff; background:#f6f9ff; }
+  .option.picked { border-color:#2f6bff; background:#eef4ff; }
+  .badge { display:inline-grid; place-items:center; width:22px; height:22px; border-radius:50%; border:1px solid #c3cddd; font-size:12px; color:#5b6b82; }
+  .option.picked .badge { background:#2f6bff; border-color:#2f6bff; color:#fff; }
+  .btns { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+  .btns button { border:1px solid #d3dbe8; background:#fff; border-radius:6px; padding:7px 16px; cursor:pointer; font:inherit; letter-spacing:2px; }
+  .btns button.primary { background:#2f6bff; border-color:#2f6bff; color:#fff; letter-spacing:2px; }
+  .result h2 { margin:0 0 8px; }
+  .result .score { font-size:24px; font-weight:700; color:#1a9c62; }
+  .result .detail { font-size:13px; color:#5b6b82; white-space:pre-line; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="qhead">
+    <span class="qno" id="qno">第1题</span>
+    <div class="lang-switch">
+      <button id="langZh">中</button>
+      <button id="langEn">EN</button>
+    </div>
+  </div>
+  <div id="stage"></div>
+</div>
+<script>
+const QUESTIONS = [
+  { stem: '(判断题)在机床快速进给时，要把手轮离合器打开，以防手轮快速旋转伤人。', key: 'A' },
+  { stem: '(判断题)生活在地球上的人类每时每刻都受到天然存在的各种电离辐射的照射，这种照射通常称为天然本底照射。', key: 'A' },
+  { stem: '(判断题)放射性实验室内可以吃东西、喝水。', key: 'B' },
+  { stem: '(判断题)生产、销售、使用放射性同位素和射线装置的单位，应当依照本章规定取得许可证。', key: 'A' },
+  { stem: '(判断题)从事特种作业的人员如：电工、焊工等必须接受安全技术培训，通过考核并持有《特种作业人员操作证》才能上岗。', key: 'A' },
+  { stem: '(判断题)实验室内可以使用电炉等取暖、做饭。', key: 'B' },
+  { stem: '(判断题)只要不影响实验，可以在实验室洁净区域铺床睡觉。', key: 'B' },
+  { stem: '(判断题)节假日或假期做实验必须经导师批准，通知系办。', key: 'A' },
+];
+
+window.__traps = { langZh: false, langEn: false };
+window.__answers = {};
+let current = 0;
+const stage = document.getElementById('stage');
+const qno = document.getElementById('qno');
+
+document.getElementById('langZh').addEventListener('click', () => { window.__traps.langZh = true; });
+document.getElementById('langEn').addEventListener('click', () => { window.__traps.langEn = true; });
+
+function render() {
+  const q = QUESTIONS[current];
+  const isLast = current === QUESTIONS.length - 1;
+  qno.textContent = `第${current + 1}题`;
+  const picked = window.__answers[current];
+  stage.innerHTML = `
+    <h2 class="question-title">第${current + 1}题：${q.stem}</h2>
+    <div class="options">
+      <div class="option ${picked === 'A' ? 'picked' : ''}" data-k="A" title="正确"><span class="badge">A</span><span>正确</span></div>
+      <div class="option ${picked === 'B' ? 'picked' : ''}" data-k="B" title="错误"><span class="badge">B</span><span>错误</span></div>
+    </div>
+    <div class="btns">
+      <button id="prev">上一题</button>
+      ${isLast ? '' : '<button id="next">下一题</button>'}
+      <button id="submit" class="primary">提交</button>
+    </div>`;
+
+  stage.querySelectorAll('.option').forEach((el) => {
+    el.addEventListener('click', () => {
+      window.__answers[current] = el.dataset.k;
+      render();
+    });
+  });
+  const next = document.getElementById('next');
+  if (next) next.addEventListener('click', () => { current += 1; render(); });
+  const prev = document.getElementById('prev');
+  if (prev) prev.addEventListener('click', () => { if (current > 0) { current -= 1; render(); } });
+  const submit = document.getElementById('submit');
+  if (submit) submit.addEventListener('click', finish);
+}
+
+function judge(q, ans) { return ans === q.key; }
+
+function finish() {
+  let right = 0;
+  const lines = [];
+  QUESTIONS.forEach((q, i) => {
+    const ok = judge(q, window.__answers[i]);
+    if (ok) right += 1;
+    lines.push(`${ok ? '✓' : '✗'} 第${i + 1}题 你的答案：${JSON.stringify(window.__answers[i] ?? '')}`);
+  });
+  const score = Math.round((right / QUESTIONS.length) * 100);
+  qno.textContent = '';
+  stage.innerHTML = `<div class="result"><h2>答题完成</h2>
+    <p class="score">得分 ${score}（${right}/${QUESTIONS.length}）</p>
+    <p class="detail">${lines.join('\n')}</p></div>`;
+  window.__quizDone = { right, total: QUESTIONS.length, score, traps: window.__traps, answers: window.__answers };
+}
+
+render();
+</script>
+</body>
+</html>

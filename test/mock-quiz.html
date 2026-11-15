@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>随堂练习 · 自测用</title>
+<style>
+  body { font-family: system-ui, "Microsoft YaHei", sans-serif; background: #f4f6fa; margin: 0; padding: 32px; color: #1c2430; }
+  .wrap { max-width: 720px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 28px 32px 36px; box-shadow: 0 6px 28px rgba(20,40,80,.08); }
+  h1 { font-size: 18px; color: #4a5a72; font-weight: 600; margin: 0 0 4px; }
+  .progress { font-size: 13px; color: #8b98ab; margin-bottom: 18px; }
+  .question-title { font-size: 17px; line-height: 1.6; margin: 0 0 18px; font-weight: 600; }
+  .option { display:flex; align-items:center; gap:10px; padding:11px 14px; border:1px solid #dbe2ec; border-radius:9px; margin-bottom:10px; cursor:pointer; }
+  .option:hover { border-color:#7aa7ff; background:#f6f9ff; }
+  .option input { accent-color:#2f6bff; }
+  .option-text { font-size:15px; }
+  .judge .option { justify-content:center; }
+  .judge input { position:absolute; opacity:0; width:0; height:0; }
+  .judge .option-text { font-weight:600; letter-spacing:2px; }
+  input[type=text], textarea, select { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #d3dbe8; border-radius:8px; font-size:15px; font-family:inherit; }
+  textarea { min-height:84px; resize:vertical; }
+  .actions { margin-top:22px; display:flex; justify-content:flex-end; gap:10px; }
+  button { border:0; border-radius:8px; padding:10px 22px; font-size:15px; cursor:pointer; background:#2f6bff; color:#fff; }
+  .result h2 { margin:0 0 10px; font-size:20px; }
+  .result .score { font-size:26px; font-weight:700; color:#1a9c62; margin:0 0 12px; }
+  .result .detail { font-size:14px; color:#5b6b82; line-height:1.7; white-space:pre-line; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>随堂练习（本地自测页，无真实考试用途）</h1>
+  <div class="progress" id="progress"></div>
+  <div id="stage"></div>
+</div>
+<script>
+const QUESTIONS = [
+  { type: 'single', stem: '中国的首都是哪座城市？', key: 'A',
+    options: ['A. 北京', 'B. 上海', 'C. 广州', 'D. 深圳'] },
+  { type: 'single', stem: '光在真空中的传播速度约为？', key: 'B',
+    options: ['A. 3×10⁵ km/s', 'B. 3×10⁸ m/s', 'C. 340 m/s', 'D. 1.5×10⁸ m/s'] },
+  { type: 'multiple', stem: '下列属于编程语言的有？', key: ['A', 'C'],
+    options: ['A. Python', 'B. HTML', 'C. Java', 'D. JSON'] },
+  { type: 'multiple', stem: '下列整数中是偶数的有？', key: ['A', 'C'],
+    options: ['A. 2', 'B. 3', 'C. 4', 'D. 5'] },
+  { type: 'blank', stem: '2 的 10 次方等于 ______', key: '1024', placeholder: '填数字' },
+  { type: 'blank', stem: '请用一句话说明 API 是什么。', key: 'keyword:接口', placeholder: '一句话描述' },
+  { type: 'judge', stem: '太阳从西边升起。', key: '错', options: ['对', '错'] },
+  { type: 'select', stem: '一年有几个月？', key: '12', options: ['11', '12', '13'] },
+];
+
+const state = { i: 0, answers: {}, done: false };
+const stage = document.getElementById('stage');
+const progress = document.getElementById('progress');
+
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function render() {
+  if (state.done) return renderResult();
+  const q = QUESTIONS[state.i];
+  progress.textContent = `第 ${state.i + 1} 题 / 共 ${QUESTIONS.length} 题`;
+  let html = `<h2 class="question-title">${esc(q.stem)}</h2>`;
+  const cur = state.answers[state.i];
+
+  if (q.type === 'single' || q.type === 'multiple' || q.type === 'judge') {
+    const multi = q.type === 'multiple';
+    const cls = q.type === 'judge' ? 'judge' : '';
+    html += `<div class="${cls}">`;
+    q.options.forEach((text, idx) => {
+      const letter = String.fromCharCode(65 + idx);
+      const checked = multi ? (cur || []).includes(letter) : cur === letter;
+      html += `<label class="option">
+        <input type="${multi ? 'checkbox' : 'radio'}" name="q${state.i}" value="${letter}" ${checked ? 'checked' : ''}>
+        <span class="option-text">${esc(text)}</span>
+      </label>`;
+    });
+    html += '</div>';
+  } else if (q.type === 'blank') {
+    const v = cur || '';
+    html += q.stem.includes('API')
+      ? `<textarea id="blank" placeholder="${esc(q.placeholder || '')}">${esc(v)}</textarea>`
+      : `<input type="text" id="blank" placeholder="${esc(q.placeholder || '')}" value="${esc(v)}">`;
+  } else if (q.type === 'select') {
+    html += '<select id="sel">';
+    html += `<option value="">请选择</option>`;
+    q.options.forEach((o) => { html += `<option value="${esc(o)}" ${cur === o ? 'selected' : ''}>${esc(o)}</option>`; });
+    html += '</select>';
+  }
+
+  const last = state.i === QUESTIONS.length - 1;
+  html += `<div class="actions">${last
+    ? '<button id="submit" class="submit-btn">提交</button>'
+    : '<button id="next" class="next-btn">下一题</button>'}</div>`;
+  stage.innerHTML = html;
+
+  const nextBtn = document.getElementById('next');
+  if (nextBtn) nextBtn.addEventListener('click', next);
+  const submitBtn = document.getElementById('submit');
+  if (submitBtn) submitBtn.addEventListener('click', submit);
+
+  stage.querySelectorAll('input[type=radio], input[type=checkbox]').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      if (q.type === 'multiple') {
+        const set = new Set(state.answers[state.i] || []);
+        if (inp.checked) set.add(inp.value); else set.delete(inp.value);
+        state.answers[state.i] = [...set].sort();
+      } else {
+        state.answers[state.i] = inp.value;
+      }
+    });
+  });
+  const blank = document.getElementById('blank');
+  if (blank) blank.addEventListener('input', () => { state.answers[state.i] = blank.value; });
+  const sel = document.getElementById('sel');
+  if (sel) sel.addEventListener('change', () => { state.answers[state.i] = sel.value; });
+}
+
+function collect() {
+  const blank = document.getElementById('blank');
+  if (blank) state.answers[state.i] = blank.value;
+  const sel = document.getElementById('sel');
+  if (sel) state.answers[state.i] = sel.value;
+}
+
+function next() { collect(); state.i += 1; render(); }
+
+function submit() { collect(); state.done = true; render(); }
+
+function judge(q, ans) {
+  if (q.type === 'single') return ans === q.key;
+  if (q.type === 'judge') {
+    const idx = typeof ans === 'string' && ans ? ans.charCodeAt(0) - 65 : -1;
+    return (q.options[idx] || '') === q.key;
+  }
+  if (q.type === 'multiple') {
+    const a = (ans || []).slice().sort().join('');
+    const b = q.key.slice().sort().join('');
+    return a === b;
+  }
+  if (q.type === 'blank') {
+    const v = String(ans || '').trim();
+    if (q.key.startsWith('keyword:')) return v.includes(q.key.slice(8));
+    return v === q.key;
+  }
+  if (q.type === 'select') return String(ans || '').trim() === q.key;
+  return false;
+}
+
+function renderResult() {
+  let right = 0;
+  const lines = [];
+  QUESTIONS.forEach((q, idx) => {
+    const ok = judge(q, state.answers[idx]);
+    if (ok) right += 1;
+    lines.push(`${ok ? '✓' : '✗'} 第${idx + 1}题 你的答案：${JSON.stringify(state.answers[idx] ?? '')}`);
+  });
+  const score = Math.round((right / QUESTIONS.length) * 100);
+  progress.textContent = '';
+  stage.innerHTML = `<div class="result">
+      <h2>答题完成</h2>
+      <p class="score">得分 ${score}（${right}/${QUESTIONS.length}）</p>
+      <p class="detail">${lines.join('\n')}</p>
+    </div>`;
+  window.__quizDone = { right, total: QUESTIONS.length, score, answers: state.answers };
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>登录</title>
+<style>body{font-family:system-ui,"Microsoft YaHei",sans-serif;background:#f4f6fa;display:flex;justify-content:center;padding-top:80px}form{background:#fff;padding:28px 32px;border-radius:12px;box-shadow:0 6px 28px rgba(20,40,80,.08);width:320px}h1{font-size:18px;margin:0 0 18px}label{display:block;font-size:13px;color:#5b6b82;margin:12px 0 6px}input{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d3dbe8;border-radius:8px}button{margin-top:18px;width:100%;padding:10px;border:0;border-radius:8px;background:#2f6bff;color:#fff;font-size:15px}</style>
+</head>
+<body>
+  <!-- 干扰页：有输入框但没有任何题目，检测不应选中它 -->
+  <form onsubmit="return false">
+    <h1>学习平台登录</h1>
+    <label>账号</label><input type="text" placeholder="学号">
+    <label>密码</label><input type="text" placeholder="密码">
+    <button>登录</button>
+  </form>
+</body>
+</html>

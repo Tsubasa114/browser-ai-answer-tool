@@ -1,0 +1,50 @@
+{
+  "name": "browser-autoanswer",
+  "version": "0.1.0",
+  "description": "Drive a real browser over CDP, read quiz questions from the DOM, answer them with an LLM, apply the answers and advance automatically.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "src/main.js",
+  "bin": {
+    "browser-autoanswer": "src/main.js"
+  },
+  "files": [
+    "src/",
+    "app/",
+    "tools/",
+    "config.example.json",
+    "README.md",
+    "README.zh-CN.md"
+  ],
+  "scripts": {
+    "start": "node src/main.js --config config.json",
+    "dry": "node src/main.js --config config.json --dry-run",
+    "panel": "node app/server.js --open --config config.json",
+    "inspect": "node tools/inspect.js",
+    "test": "node --test test/solver.test.js",
+    "test:e2e": "node test/run-e2e.js && node test/panel-e2e.js"
+  },
+  "keywords": [
+    "playwright",
+    "cdp",
+    "browser-automation",
+    "llm",
+    "quiz",
+    "form-filling",
+    "accessibility"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OWNER/browser-autoanswer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OWNER/browser-autoanswer/issues"
+  },
+  "homepage": "https://github.com/OWNER/browser-autoanswer#readme",
+  "dependencies": {
+    "playwright-core": "^1.49.0"
+  }
+}
