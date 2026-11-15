@@ -35,7 +35,7 @@
 ## 安装
 
 ```bash
-git clone https://github.com/OWNER/browser-autoanswer.git
+git clone https://github.com/Tsubasa114/browser-ai-answer-tool.git
 cd browser-autoanswer
 npm install                      # 只装 playwright-core，不下载浏览器
 cp config.example.json config.json
