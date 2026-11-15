@@ -1,3 +1,4 @@
+
 # browser-autoanswer
 
 Automate answering quizzes in a **real, already-logged-in browser**. It finds the quiz tab over CDP,
@@ -206,3 +207,7 @@ config.example.json
 MIT — see [LICENSE](LICENSE).
 
 中文说明：[README.zh-CN.md](README.zh-CN.md)
+=======
+# browser-ai-answer-tool
+此脚本用于对浏览器中的题目进行ai自动答题，可通过某些school的无意义考试
+>>>>>>> c148ca77f760c68e05d11fcce6e24a2479ef9219
