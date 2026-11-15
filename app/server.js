@@ -65,11 +65,6 @@ function readHistory(limit = 30) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   const route = `${req.method} ${url.pathname}`;
-  // 页面类请求记一条，便于排查“窗口打开了但没内容”
-  if (route === 'GET /') {
-    info(`HTTP GET / ua=${(req.headers['user-agent'] || '').slice(0, 48)}`);
-    res.on('finish', () => info(`HTTP GET / done ${res.statusCode}`));
-  }
 
   try {
     if (route === 'GET /' || route === 'GET /index.html') {

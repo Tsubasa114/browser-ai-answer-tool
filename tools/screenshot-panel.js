@@ -1,6 +1,9 @@
 // 生成面板截图（文档/演示用）：起一个演示浏览器 + 面板，跑一轮，然后把界面截下来。
 //   node tools/screenshot-panel.js [输出路径]
+//
+// 题目页通过本地 HTTP 提供（而不是 file://），这样截图里不会出现本机绝对路径。
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -13,11 +16,23 @@ const OUT = process.argv[2] || path.join(ROOT, 'runs', 'panel.png');
 const PORT = 3400 + Math.floor(Math.random() * 90);
 const CDP_PORT = 9500 + Math.floor(Math.random() * 90);
 const ENDPOINT = `http://127.0.0.1:${CDP_PORT}`;
-const QUIZ = 'file:///' + path.join(ROOT, 'test', 'mock-quiz.html').replace(/\\/g, '/');
+const TEST_DIR = path.join(ROOT, 'test');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// 极简静态服务，只用来托管 test/ 下的模拟题目页
+const staticSrv = http.createServer((req, res) => {
+  const name = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '') || 'mock-quiz.html';
+  const file = path.join(TEST_DIR, name);
+  if (!file.startsWith(TEST_DIR) || !fs.existsSync(file)) { res.writeHead(404); res.end('not found'); return; }
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(fs.readFileSync(file));
+});
+await new Promise((resolve) => staticSrv.listen(0, '127.0.0.1', resolve));
+const QUIZ = `http://127.0.0.1:${staticSrv.address().port}/mock-quiz.html`;
 
 if (!findExecutable({ browser: { channel: 'msedge', executablePath: '' } })) {
   console.error('没找到 Edge/Chrome');
+  staticSrv.close();
   process.exit(1);
 }
 
@@ -71,4 +86,5 @@ try {
   await api('/api/shutdown', {}).catch(() => {});
   try { edge.kill(); } catch (e) {}
   try { server.kill(); } catch (e) {}
+  try { staticSrv.close(); } catch (e) {}
 }
