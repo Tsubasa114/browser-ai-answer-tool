@@ -9,6 +9,10 @@ test/runs/
 # Local config (may contain API keys)
 config.json
 
+# Local node location (machine specific)
+node.path
+runtime/
+
 # Browser profiles / caches
 .browser-profile/
 **/.browser-profile/

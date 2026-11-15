@@ -42,8 +42,18 @@ cp config.example.json config.json
 export DEEPSEEK_API_KEY=sk-...   # 或者直接改 config.json 里的 llm.apiKey
 ```
 
-Windows 上可以直接双击 `setup.cmd` 装依赖；`run.cmd` / `panel.cmd` 是包装脚本，也支持便携版
-`runtime\node.exe`。
+Windows 上可以直接双击 `setup.cmd` 装依赖；`run.cmd` / `panel.cmd` 是包装脚本。
+
+### Windows：node 不在 PATH 里？
+
+三个脚本按这个顺序找 Node，所以**不要求** `node` 在 PATH 里：
+
+1. 环境变量 `AA_NODE`（写 `node.exe` 的完整路径）
+2. 脚本同目录下的 `node.path` 文件，里面一行写完整路径（已 gitignore）
+3. `runtime\node.exe`（放一个便携版 Node）
+4. PATH 里的 `node`
+
+最省事的做法是 `echo C:\path\to\node.exe > node.path`，或者直接把便携版放进 `runtime\`。
 
 ## 用法
 
@@ -161,6 +171,8 @@ config.example.json
 
 ## 常见问题
 
+- **`[x] node.exe not found`** —— 脚本没找到 Node：装 Node.js 18+，或用 `AA_NODE`、`node.path`、
+  `runtime\node.exe` 指过去（见上面「node 不在 PATH 里」）。
 - **连不上 CDP** —— 浏览器没带 `--remote-debugging-port=9222`；或把 `browser.autoLaunch` 设为 true。
 - **点了没选上** —— 受控组件站点；看 `runs/answers.jsonl` 里的 `applied` 字段，`false` 就需要针对该站点补选择器。
 - **点错了元素** —— 看日志有没有 `（题卡内）`；没有说明它被判定在题目区块外，把它的容器加进 `selectors.chrome`。

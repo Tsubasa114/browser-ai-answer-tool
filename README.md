@@ -47,8 +47,13 @@ cp config.example.json config.json
 export DEEPSEEK_API_KEY=sk-...  # or edit llm.apiKey in config.json
 ```
 
-Windows users can run `setup.cmd` instead of `npm install`; `run.cmd` and `panel.cmd` are wrappers
-that also work with a portable `runtime\node.exe`.
+Windows users can run the helper scripts (`setup.cmd`, `run.cmd`, `panel.cmd`). They look for Node in
+this order, so Node does **not** have to be on `PATH`:
+
+1. `AA_NODE` environment variable (full path to `node.exe`)
+2. a `node.path` file next to the scripts, containing the full path on one line (git-ignored)
+3. `runtime\node.exe` — a portable Node build dropped next to the scripts
+4. `node` on `PATH`
 
 ## Usage
 
@@ -184,6 +189,9 @@ config.example.json
 
 ## Troubleshooting
 
+- **`[x] node.exe not found`** — the wrappers cannot find Node. Install Node.js 18+, or set `AA_NODE`
+  to the full path of `node.exe`, or write that path into a `node.path` file, or put a portable
+  `node.exe` into `runtime\`.
 - **`connectOverCDP` fails** — start the browser with `--remote-debugging-port=9222`, or let
   `browser.autoLaunch` do it.
 - **Clicked but nothing selected** — many sites use controlled components; check the `applied` field
